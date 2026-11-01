@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FUT27 Sniper Lab</title>
+<style>
+:root{--bg:#0b0f17;--card:#141b29;--line:#243049;--text:#e6edf7;--mut:#8696b3;--acc:#2de2a6;--warn:#ffb020;--bad:#ff5d73;--blue:#4c9aff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)}
+h1{font-size:18px;margin:0}h1 span{color:var(--acc)}
+.notice{font-size:12px;color:var(--mut);max-width:620px}
+main{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;padding:16px;max-width:1400px;margin:auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin:0 0 10px}
+.wide{grid-column:1/-1}
+label{display:block;font-size:12px;color:var(--mut);margin:8px 0 3px}
+input,select,button{font:inherit;color:var(--text);background:#0e1522;border:1px solid var(--line);border-radius:6px;padding:7px 9px;width:100%}
+button{cursor:pointer;width:auto;background:#1b2740}
+button:hover{border-color:var(--acc)}
+button.primary{background:var(--acc);color:#04130d;border-color:var(--acc);font-weight:600}
+button.danger{border-color:var(--bad);color:var(--bad)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:end}.row>*{flex:1;min-width:90px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.stat{background:#0e1522;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.stat b{display:block;font-size:18px}.stat small{color:var(--mut)}
+.pos{color:var(--acc)}.neg{color:var(--bad)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--mut);font-weight:500;font-size:12px}
+.scroll{max-height:320px;overflow:auto}
+.tag{display:inline-block;padding:1px 7px;border-radius:99px;font-size:11px;background:#1b2740}
+.tag.hit{background:rgba(45,226,166,.15);color:var(--acc)}.tag.miss{background:rgba(255,93,115,.15);color:var(--bad)}
+.out{font-size:22px;font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{background:#1b2740;border:1px solid var(--line);border-radius:99px;padding:3px 10px;font-size:12px;cursor:pointer}
+.chip:hover{border-color:var(--acc)}
+</style>
+</head>
+<body>
+<header>
+  <h1>FUT27 <span>Sniper Lab</span></h1>
+  <div class="notice">Practice &amp; planning tool. It simulates a transfer market and calculates profit — it does <b>not</b> connect to EA servers or automate your account (automation breaks EA's Terms of Service and risks bans).</div>
+</header>
+
+<main>
+  <section class="card">
+    <h2>Snipe filter</h2>
+    <label>Player / card name</label>
+    <input id="fName" value="Mbappé">
+    <div class="row">
+      <div><label>Market price (BIN avg)</label><input id="fMarket" type="number" value="25000"></div>
+      <div><label>Max BIN to buy</label><input id="fMax" type="number" value="21000"></div>
+    </div>
+    <div class="row">
+      <div><label>Min profit (coins)</label><input id="fProfit" type="number" value="1500"></div>
+      <div><label>Your reaction (ms)</label><input id="fReact" type="number" value="450"></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="primary" id="btnSave">Save filter</button>
+      <button id="btnAuto">Auto-set from market</button>
+    </div>
+    <div class="chips" id="saved"></div>
+  </section>
+
+  <section class="card">
+    <h2>Profit calculator (5% EA tax)</h2>
+    <div class="row">
+      <div><label>Buy price</label><input id="cBuy" type="number" value="21000"></div>
+      <div><label>Sell price (BIN)</label><input id="cSell" type="number" value="25000"></div>
+    </div>
+    <p style="margin:12px 0 4px;color:var(--mut)">Net profit</p>
+    <div class="out" id="cProfit">–</div>
+    <p style="margin:12px 0 4px;color:var(--mut)">Break-even sell price · ROI</p>
+    <div id="cBE">–</div>
+    <p style="margin:12px 0 4px;color:var(--mut)">Next valid bid steps from buy price</p>
+    <div id="cSteps">–</div>
+  </section>
+
+  <section class="card">
+    <h2>Session</h2>
+    <div class="stats">
+      <div class="stat"><small>Listings seen</small><b id="sSeen">0</b></div>
+      <div class="stat"><small>Matches</small><b id="sMatch">0</b></div>
+      <div class="stat"><small>Won</small><b id="sWon">0</b></div>
+      <div class="stat"><small>Missed</small><b id="sMiss">0</b></div>
+      <div class="stat"><small>Net profit</small><b id="sProfit">0</b></div>
+      <div class="stat"><small>Win rate</small><b id="sRate">–</b></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="primary" id="btnRun">▶ Start simulation</button>
+      <button id="btnSpeed">Speed: 1x</button>
+      <button class="danger" id="btnReset">Reset</button>
+    </div>
+    <p style="color:var(--mut);font-size:12px;margin-bottom:0">Each match is a race: you win if your reaction time beats a random competing sniper (~250–700 ms).</p>
+  </section>
+
+  <section class="card wide">
+    <h2>Simulated market feed</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Time</th><th>Player</th><th>BIN</th><th>Market</th><th>Margin</th><th>Result</th></tr></thead>
+      <tbody id="feed"></tbody>
+    </table></div>
+  </section>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const fmt=n=>Math.round(n).toLocaleString();
+const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+
+// EA price step ladder
+function step(p){return p<1000?50:p<10000?100:p<50000?250:p<100000?500:1000}
+function nextBids(p,n=4){const out=[];for(let i=0;i<n;i++){p+=step(p);out.push(p)}return out}
+const tax=s=>Math.floor(s*0.95);
+
+// ---- calculator
+function calc(){
+  const b=+$('cBuy').value||0,s=+$('cSell').value||0,net=tax(s)-b;
+  $('cProfit').textContent=(net>=0?'+':'')+fmt(net)+' coins';
+  $('cProfit').className='out '+(net>=0?'pos':'neg');
+  $('cBE').textContent=b?fmt(Math.ceil(b/0.95))+' coins · ROI '+(net/b*100).toFixed(1)+'%':'–';
+  $('cSteps').textContent=b?nextBids(b).map(fmt).join(' → '):'–';
+}
+['cBuy','cSell'].forEach(i=>$(i).oninput=calc);calc();
+
+// ---- filters
+let filters=store.get('filters',[]);
+function renderFilters(){
+  $('saved').innerHTML='';
+  filters.forEach((f,i)=>{
+    const c=document.createElement('span');c.className='chip';
+    c.textContent=`${f.name} ≤ ${fmt(f.max)} ✕`;
+    c.title='Click to load, shift-click to delete';
+    c.onclick=e=>{if(e.shiftKey){filters.splice(i,1);store.set('filters',filters);renderFilters();return}
+      $('fName').value=f.name;$('fMarket').value=f.market;$('fMax').value=f.max;$('fProfit').value=f.profit;$('fReact').value=f.react};
+    $('saved').appendChild(c);
+  });
+}
+$('btnSave').onclick=()=>{filters.push(cur());store.set('filters',filters);renderFilters()};
+$('btnAuto').onclick=()=>{ // max buy so that net profit >= min profit
+  const m=+$('fMarket').value,p=+$('fProfit').value;
+  $('fMax').value=Math.max(0,tax(m)-p);
+};
+const cur=()=>({name:$('fName').value||'Any',market:+$('fMarket').value,max:+$('fMax').value,profit:+$('fProfit').value,react:+$('fReact').value});
+renderFilters();
+
+// ---- simulation
+let timer=null,speed=1,S={seen:0,match:0,won:0,miss:0,profit:0};
+function renderStats(){
+  $('sSeen').textContent=S.seen;$('sMatch').textContent=S.match;$('sWon').textContent=S.won;$('sMiss').textContent=S.miss;
+  $('sProfit').textContent=fmt(S.profit);$('sProfit').className=S.profit>=0?'pos':'neg';
+  $('sRate').textContent=S.match?Math.round(S.won/S.match*100)+'%':'–';
+}
+function tick(){
+  const f=cur();S.seen++;
+  // listing price: mostly near market, occasional underpriced
+  const r=Math.random();
+  const factor=r<0.12?0.65+Math.random()*0.2:0.88+Math.random()*0.2;
+  let bin=Math.round(f.market*factor/step(f.market))*step(f.market);
+  const net=tax(f.market)-bin;
+  let res='skip',cls='';
+  if(bin<=f.max&&net>=f.profit){
+    S.match++;
+    const rival=250+Math.random()*450;
+    if(f.react<rival){S.won++;S.profit+=net;res=`won (+${fmt(net)})`;cls='hit'}
+    else{S.miss++;res=`sniped by rival (${Math.round(rival)}ms)`;cls='miss'}
+  }
+  renderStats();
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td>${new Date().toLocaleTimeString()}</td><td>${f.name}</td><td>${fmt(bin)}</td><td>${fmt(f.market)}</td>
+    <td class="${net>=0?'pos':'neg'}">${net>=0?'+':''}${fmt(net)}</td><td><span class="tag ${cls}">${res}</span></td>`;
+  $('feed').prepend(tr);
+  while($('feed').children.length>60)$('feed').lastChild.remove();
+}
+function start(){timer=setInterval(tick,900/speed);$('btnRun').textContent='⏸ Pause'}
+function stop(){clearInterval(timer);timer=null;$('btnRun').textContent='▶ Start simulation'}
+$('btnRun').onclick=()=>timer?stop():start();
+$('btnSpeed').onclick=()=>{speed=speed===1?3:speed===3?8:1;$('btnSpeed').textContent=`Speed: ${speed}x`;if(timer){stop();start()}};
+$('btnReset').onclick=()=>{stop();S={seen:0,match:0,won:0,miss:0,profit:0};$('feed').innerHTML='';renderStats()};
+renderStats();
+</script>
+</body>
+</html>
